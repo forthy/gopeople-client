@@ -2,11 +2,44 @@
   "name": "go-people-client",
   "version": "1.0.0",
   "description": "Provides a client to Austria's GoPeople service.",
-  "main": "index.js",
+  "main": "lib/index.js",
+  "types": "lib/index.d.ts",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "prepare": "npm run build",
+    "prepublishOnly": "npm test && npm run lint",
+    "preversion": "npm run lint",
+    "test": "jest --config jestconfig.json",
+    "build": "tsc",
+    "format": "prettier --write \"src/**/*.(ts|js)\"",
+    "lint": "tslint -p tsconfig.json",
+    "version": "npm run format && git add -A src",
+    "postversion": "git push && git push --tags"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC"
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/forthy/go-people-client"
+  },
+  "homepage": "https://github.com/forthy/go-people-client#readme",
+  "bug": {
+    "url": "https://github.com/forthy/go-people-client/issues"
+  },
+  "keywords": [
+    "GoPeople",
+    "client",
+    "typescript"
+  ],
+  "author": "Richard Chuo",
+  "license": "ISC",
+  "devDependencies": {
+    "@types/jest": "^26.0.3",
+    "jest": "^26.1.0",
+    "prettier": "^2.0.5",
+    "ts-jest": "^26.1.1",
+    "tslint": "^6.1.2",
+    "tslint-config-prettier": "^1.18.0",
+    "typescript": "^3.9.5"
+  },
+  "files": [
+    "lib/**/*"
+  ]
 }
