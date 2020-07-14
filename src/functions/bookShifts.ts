@@ -1,15 +1,15 @@
 import { DateTime, Interval } from 'luxon';
-import { Either, right, left, either, fold as eitherFold } from 'fp-ts/lib/Either';
+import { Either, right, left, either } from 'fp-ts/lib/Either';
 import { fromNullable, fold, Option, none } from 'fp-ts/lib/Option';
 import { traverse as arrayTraverse } from 'fp-ts/lib/Array';
 import { pipe } from 'fp-ts/lib/pipeable';
 import { Do } from 'fp-ts-contrib/lib/Do';
-import { TaskEither, tryCatch, fromEither, chain, left as teLeft } from 'fp-ts/lib/TaskEither';
+import { TaskEither, fromEither, chain, taskEither } from 'fp-ts/lib/TaskEither';
 import * as _ from 'lodash';
 import { Address, toJson as addressToJson } from '../models/address';
 import { Type } from '../models/parcel';
 import * as requestPromise from 'request-promise-native';
-import * as env from '../gopeople.config';
+import { ConfigProvider, GoPeopleHost, GoPeopleAPIKey } from '../functions/config/configProvider';
 
 export {
   Shift,
@@ -230,12 +230,6 @@ function validateTime(t: Time): Either<Error, Time> {
  *   none,
  * );
  *
- * const addressto = new a.Address(
- *   a.address1Of('100 Pitt St'),
- *   a.suburbOf('Sydney'),
- *   a.stateOf('NSW'),
- *   a.postcodeOf('2000'),
- * );
  * const dt = DateTime.local().setZone('Australia/Sydney').plus({ days: 2 });
  *
  * const nomadShift = await bookShifts(
@@ -248,7 +242,7 @@ function validateTime(t: Time): Either<Error, Time> {
  *   Vehicle.Sedan,
  *   [equipmentOf('trolley')],
  *   noteOf('Be on time'),
- * )();
+ * )(configProvider)();
  *
  * expect(nomadShift).toStrictEqual(
  *   right([new ShiftInfo(shiftIdOf('3e2dd173-6fd5-5d18-8046-055b6b339e30'),
@@ -257,9 +251,9 @@ function validateTime(t: Time): Either<Error, Time> {
  * ```
  * The return type of function bookShifts is `TaskEither<Error, ShiftInfo[]>`.
  * `TaskEither` is from project [fp-ts](https://gcanti.github.io/fp-ts/modules/TaskEither.ts.html).<br/><br/>
- * `TaskEither` type basically a type that wraps `Promise<Either<ErrorType, ResultType>>`.
+ * `TaskEither` type basically is a type that wraps `Promise<Either<ErrorType, ResultType>>`.
  * <br/>
- * The reason why we need `TaskEither` here is because it gives us combinator fuctions, such as `map` and `bind`,
+ * The reason why we need `TaskEither` here is because it gives us combinator functions, such as `map` and `bind`,
  * so we can join multiple `TaskEither`s work together without realising a Promise till the end to complete a feature.<br/>
  * After all TaskEithers are joined, we can call `apply()` function of the final TaskEither to run the composed Promise and have the result `Either<ErrorType, ResultType>`.<br/>
  * For example,<br/>
@@ -287,7 +281,7 @@ function validateTime(t: Time): Either<Error, Time> {
  * ```
  *
  * @param pickupAddress - the pickup address (usually the store address)
- * @param parcelType - parcle type, such as grocery, flower
+ * @param parcelType - parcel type, such as grocery, flower
  * @param dates - an array of shift dates following 'yyyy-MM-dd' format
  * @param time - the starting time of the shift in format `00:00 (AM | PM)`
  * @param hours - the duration of a shift, should be > 3 hours
@@ -310,65 +304,68 @@ function bookShifts(
   note: Note,
   isCBD: boolean = false,
   returnAddress: Option<Address> = none,
-): TaskEither<Error, ShiftInfo[]> {
-  return eitherFold<Error, object, TaskEither<Error, ShiftInfo[]>>(
-    (e) => {
-      return teLeft<Error, ShiftInfo[]>(e);
-    },
-    (b) =>
-      chain(fromEither)(
-        tryCatch(
-          async () => {
-            return requestPromise
-              .post({
-                method: 'POST',
-                uri: `${env.goPeopleHost}/shift`,
-                headers: {
-                  Authorization: `bearer ${env.goPeopleKey}`,
-                },
-                body: b,
-                json: true,
-              })
-              .then((resp) => {
-                return parseResponse(resp);
-              })
-              .catch((err) => {
-                return left(new Error(`'/shift' HTTP request error: ${JSON.stringify(err)}`));
-              });
-          },
-          (err) => new Error(`'/shift' HTTP request error: ${JSON.stringify(err)}`),
-        ),
-      ),
-  )(
-    Do(either)
-      .bind(
-        'es',
-        arrayTraverse(either)<Shift, Error, Shift>((s) => validateShift(s))(dates),
-      )
-      .bind('eh', validateHours(hours))
-      .bind('et', validateTime(time))
-      .return(({ es, eh, et }) => {
-        return _.omitBy(
-          {
-            pickupAddress: addressToJson(pickupAddress),
-            returnAddress: fold<Address, object | null>(
-              () => null,
-              (a) => _.omitBy(addressToJson(a), _.isNull),
-            )(returnAddress),
-            parcelType: theParcelType,
-            dates: es.map((v, i, a) => v.s),
-            time: et.t,
-            hours: eh.h,
-            runners: runners.num,
-            vehicle: theVehicle,
-            equipments: equipments.map((v, i, a) => v.e),
-            note: note.txt,
-            cbd: isCBD,
-          },
-          _.isNull,
-        );
-      }),
-  );
+): (configProvider: ConfigProvider) => TaskEither<Error, ShiftInfo[]> {
+  type Config = { host: GoPeopleHost; key: GoPeopleAPIKey };
+  type RequestForBookShift = { body: object; config: Config };
+
+  return (c) => {
+    return chain<Error, RequestForBookShift, ShiftInfo[]>((req) => {
+      return async () => {
+        return requestPromise
+          .post({
+            method: 'POST',
+            uri: `${req.config.host.h}/shift`,
+            headers: {
+              Authorization: `bearer ${req.config.key.key}`,
+            },
+            body: req.body,
+            json: true,
+          })
+          .then((resp) => {
+            return parseResponse(resp);
+          })
+          .catch((err) => {
+            return left(new Error(`'/shift' HTTP request error: ${JSON.stringify(err)}`));
+          });
+      };
+    })(
+      Do(taskEither)
+        .bind(
+          'es',
+          arrayTraverse(taskEither)<Shift, Error, Shift>((s) => {
+            return fromEither(validateShift(s));
+          })(dates),
+        )
+        .bind('eh', fromEither(validateHours(hours)))
+        .bind('et', fromEither(validateTime(time)))
+        .bind('h', c.host())
+        .bind('k', c.key())
+        .return(({ es, eh, et, h, k }) => {
+          return {
+            body: _.omitBy(
+              {
+                pickupAddress: addressToJson(pickupAddress),
+                returnAddress: fold<Address, object | null>(
+                  () => null,
+                  (a) => _.omitBy(addressToJson(a), _.isNull),
+                )(returnAddress),
+                parcelType: theParcelType,
+                dates: es.map((v, i, a) => v.s),
+                time: et.t,
+                hours: eh.h,
+                runners: runners.num,
+                vehicle: theVehicle,
+                equipments: equipments.map((v, i, a) => v.e),
+                note: note.txt,
+                cbd: isCBD,
+              },
+              _.isNull,
+            ),
+            config: { host: h, key: k },
+          };
+        }),
+    );
+  };
 }
 
 function parseResponse(resp: object): Either<Error, ShiftInfo[]> {

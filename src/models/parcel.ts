@@ -1,7 +1,29 @@
 import { Option, none, fold } from 'fp-ts/lib/Option';
 import * as _ from 'lodash';
 
-export { Type, ProductId, Sku, Name, ParcelNumber, Width, Height, Length, Weight, Dimension, Parcel, IParcel, toJson };
+export {
+  Type,
+  ProductId,
+  Sku,
+  Name,
+  ParcelNumber,
+  Width,
+  Height,
+  Length,
+  Weight,
+  Dimension,
+  Parcel,
+  IParcel,
+  toJson,
+  productIdOf,
+  skuOf,
+  nameOf,
+  parcelNumberOf,
+  widthOf,
+  heightOf,
+  lengthOf,
+  weightOf,
+};
 
 enum Type {
   Document = 'document', // weight less then 1kg
@@ -18,13 +40,25 @@ class ProductId {
   constructor(readonly id: string) {}
 }
 
+function productIdOf(id: string): ProductId {
+  return new ProductId(id);
+}
+
 // required for Shopping Cart endpoint
 class Sku {
   constructor(readonly s: string) {}
 }
 
+function skuOf(s: string): Sku {
+  return new Sku(s);
+}
+
 class Name {
   constructor(readonly n: string) {}
+}
+
+function nameOf(n: string): Name {
+  return new Name(n);
 }
 
 // number of parcels
@@ -32,9 +66,17 @@ class ParcelNumber {
   constructor(readonly num: number) {}
 }
 
+function parcelNumberOf(num: number): ParcelNumber {
+  return new ParcelNumber(num);
+}
+
 // required when type is custom (cm)
 class Width {
   constructor(readonly w: number) {}
+}
+
+function widthOf(w: number): Width {
+  return new Width(w);
 }
 
 // required when type is custom (cm)
@@ -42,14 +84,25 @@ class Height {
   constructor(readonly h: number) {}
 }
 
+function heightOf(h: number): Height {
+  return new Height(h);
+}
 // required when type is custom (cm)
 class Length {
   constructor(readonly l: number) {}
 }
 
+function lengthOf(l: number): Length {
+  return new Length(l);
+}
+
 // required when type is custom (kg)
 class Weight {
   constructor(readonly wt: number) {}
+}
+
+function weightOf(wl: number): Weight {
+  return new Weight(wl);
 }
 
 class Dimension {
