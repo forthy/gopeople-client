@@ -130,9 +130,6 @@ function parseResponse(resp: object): Either<Error, QuoteInfo> {
 
   let result: Either<Error, QuoteInfo>;
 
-  // DEBUG
-  // console.log(`GoNOW response: ${JSON.stringify(resp)}`)
-
   if (_.has(resp, 'errorCode') && _.get(resp, 'errorCode') !== 0) {
     const errorCode = _.get(resp, 'errorCode', -1);
     const errorMsg = _.get(resp, 'message', 'Unhandled exception');

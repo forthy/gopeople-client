@@ -1,13 +1,13 @@
-import * as a from '../models/address';
-import * as p from '../models/parcel';
-import { some, none, fold as optFold } from 'fp-ts/lib/Option';
-import { left, right, fold } from 'fp-ts/lib/Either';
-import { map as arrayMap, filter as arrayFilter } from 'fp-ts/lib/Array';
-import { chain, fold as teFold } from 'fp-ts/lib/TaskEither';
-import { range } from 'fp-ts/lib/Array';
-import { DateTime } from 'luxon';
-import { JobInfo, JobId, jobIdOf, trackingCodeOf } from '../models/jobInfo';
-import { instantGoShift, descriptionOf } from '../functions/instantGoShift';
+import * as a from "../models/address";
+import * as p from "../models/parcel";
+import { some, none, fold as optFold } from "fp-ts/lib/Option";
+import { left, right, fold } from "fp-ts/lib/Either";
+import { map as arrayMap, filter as arrayFilter } from "fp-ts/lib/Array";
+import { chain } from "fp-ts/lib/TaskEither";
+import { range } from "fp-ts/lib/Array";
+import { DateTime } from "luxon";
+import { JobInfo, JobId, jobIdOf, trackingCodeOf } from "../models/jobInfo";
+import { instantGoShift, descriptionOf } from "../functions/instantGoShift";
 import {
   Shift,
   validateShift,
@@ -23,13 +23,24 @@ import {
   ShiftInfo,
   shiftIdOf,
   shiftTimeOf,
-} from '../functions/bookShifts';
-import { cancelJob } from '../functions/cancelJob';
-import { DotEnvConfigProvider } from '../functions/config/dotEnvConfigProvider';
-import { fetchJobStatus, Status } from '../functions/fetchJobStatus';
-import { getQuote, GoNOW, GoSAMEDAY, QuoteInfo, Quote } from '../functions/getQuote';
-import * as mh from 'mockttp';
-import * as _ from 'lodash';
+} from "../functions/bookShifts";
+import { cancelJob } from "../functions/cancelJob";
+import { DotEnvConfigProvider } from "../functions/config/dotEnvConfigProvider";
+import { fetchJobStatus, Status } from "../functions/fetchJobStatus";
+import {
+  getQuote,
+  GoNOW,
+  GoSAMEDAY,
+  QuoteInfo,
+  Quote,
+} from "../functions/getQuote";
+import {
+  bookJob,
+  quoteIdOf,
+  descriptionOf as bjDescriptionOf,
+} from "../functions/bookJob";
+import * as mh from "mockttp";
+import * as _ from "lodash";
 
 let mockserver: mh.Mockttp;
 const configProvider = new DotEnvConfigProvider();
@@ -41,8 +52,10 @@ beforeAll(() => {
 afterAll(() => mockserver.stop());
 afterEach(() => mockserver.reset());
 
-test('Should successfully book a GoShift', async () => {
-  mockserver.post('/book/instant').withHeaders({ Authorization: 'bearer this-api-key' }).thenReply(
+test("Should successfully book a GoShift", async () => {
+  mockserver.post("/book/instant").withHeaders(
+    { Authorization: "bearer this-api-key" },
+  ).thenReply(
     200,
     `{
         "errorCode":0,
@@ -111,31 +124,31 @@ test('Should successfully book a GoShift', async () => {
   );
 
   const addressFrom = new a.Address(
-    a.address1Of('85-93 Commonwealth St'),
-    a.suburbOf('Surry Hills'),
-    a.stateOf('NSW'),
-    a.postcodeOf('2010'),
+    a.address1Of("85-93 Commonwealth St"),
+    a.suburbOf("Surry Hills"),
+    a.stateOf("NSW"),
+    a.postcodeOf("2010"),
     false,
     none,
     none,
     none,
-    some(new a.CompanyName('Nomad')),
+    some(new a.CompanyName("Nomad")),
     none,
   );
 
   const addressTo = new a.Address(
-    a.address1Of('100 Pitt St'),
-    a.suburbOf('Sydney'),
-    a.stateOf('NSW'),
-    a.postcodeOf('2000'),
+    a.address1Of("100 Pitt St"),
+    a.suburbOf("Sydney"),
+    a.stateOf("NSW"),
+    a.postcodeOf("2000"),
   );
   const aParcel = new p.Parcel(p.Type.Grocery, new p.ParcelNumber(2));
   const resp = await instantGoShift(
     addressFrom,
     addressTo,
     [aParcel],
-    DateTime.local().setZone('utc'),
-    descriptionOf('Sushi set'),
+    DateTime.local().setZone("utc"),
+    descriptionOf("Sushi set"),
   )(configProvider)();
 
   fold<Error, JobInfo, void>(
@@ -144,63 +157,78 @@ test('Should successfully book a GoShift', async () => {
   )(resp);
 
   expect(resp).toStrictEqual(
-    right(new JobInfo(jobIdOf('894c0a10-fdb9-fb27-8ddb-d81c94a6e46c'), trackingCodeOf('7OSPD3'))),
+    right(
+      new JobInfo(
+        jobIdOf("894c0a10-fdb9-fb27-8ddb-d81c94a6e46c"),
+        trackingCodeOf("7OSPD3"),
+      ),
+    ),
   );
 });
 
-test('validateShift function should function properly', () => {
-  const now1 = DateTime.utc().toFormat('yyyy-MM-dd');
+test("validateShift function should function properly", () => {
+  const now1 = DateTime.utc().toFormat("yyyy-MM-dd");
   const correctShift = shiftOf(now1);
 
   expect(validateShift(correctShift)).toStrictEqual(right(correctShift));
 
-  const incorrectShift = shiftOf('baddate');
+  const incorrectShift = shiftOf("baddate");
 
-  expect(validateShift(incorrectShift)).toStrictEqual(left(new Error('unparsable')));
-
-  const shiftExceeding30Days = shiftOf(DateTime.utc().plus({ days: 31 }).toFormat('yyyy-MM-dd'));
-
-  expect(validateShift(shiftExceeding30Days)).toStrictEqual(
-    left(new Error('Given date is after 30 days later; or is before now.')),
+  expect(validateShift(incorrectShift)).toStrictEqual(
+    left(new Error("unparsable")),
   );
 
-  const shiftBeforeToday = shiftOf(DateTime.utc().minus({ days: 1 }).toFormat('yyyy-MM-dd'));
+  const shiftExceeding30Days = shiftOf(
+    DateTime.utc().plus({ days: 31 }).toFormat("yyyy-MM-dd"),
+  );
+
+  expect(validateShift(shiftExceeding30Days)).toStrictEqual(
+    left(new Error("Given date is after 30 days later; or is before now.")),
+  );
+
+  const shiftBeforeToday = shiftOf(
+    DateTime.utc().minus({ days: 1 }).toFormat("yyyy-MM-dd"),
+  );
 
   expect(validateShift(shiftBeforeToday)).toStrictEqual(
-    left(new Error('Given date is after 30 days later; or is before now.')),
+    left(new Error("Given date is after 30 days later; or is before now.")),
   );
 });
 
-test('validateTime function should function properly', () => {
-  const emptyTimeStr = timeOf('');
+test("validateTime function should function properly", () => {
+  const emptyTimeStr = timeOf("");
 
-  expect(validateTime(emptyTimeStr)).toStrictEqual(left(new Error('Time cannot be an empty string')));
+  expect(validateTime(emptyTimeStr)).toStrictEqual(
+    left(new Error("Time cannot be an empty string")),
+  );
 
-  const correctMorning = timeOf('00:00 AM');
+  const correctMorning = timeOf("00:00 AM");
 
   expect(validateTime(correctMorning)).toStrictEqual(right(correctMorning));
 
-  const correctAfternoon = timeOf('11:40 PM');
+  const correctAfternoon = timeOf("11:40 PM");
 
   expect(validateTime(correctAfternoon)).toStrictEqual(right(correctAfternoon));
 
-  const incorrectMorning = timeOf('13:30 AM');
+  const incorrectMorning = timeOf("13:30 AM");
 
   expect(validateTime(incorrectMorning)).toStrictEqual(
-    left(new Error('[Malformation] please check the hours and minutes')),
+    left(new Error("[Malformation] please check the hours and minutes")),
   );
 
-  const incorrectMinutes = timeOf('02:60 PM');
+  const incorrectMinutes = timeOf("02:60 PM");
 
   expect(validateTime(incorrectMinutes)).toStrictEqual(
-    left(new Error('[Malformation] please check the hours and minutes')),
+    left(new Error("[Malformation] please check the hours and minutes")),
   );
 
-  const noAMOrPM = timeOf('01:15');
+  const noAMOrPM = timeOf("01:15");
 
-  expect(validateTime(noAMOrPM)).toStrictEqual(left(new Error("Invalid time string format; should be '00:00 AM/PM'")));
+  expect(validateTime(noAMOrPM)).toStrictEqual(
+    left(new Error("Invalid time string format; should be '00:00 AM/PM'")),
+  );
 
-  const incorrectAMOrPM = timeOf('02:45 pm');
+  const incorrectAMOrPM = timeOf("02:45 pm");
 
   expect(validateTime(incorrectAMOrPM)).toStrictEqual(
     left(new Error("Invalid time string format; should be '00:00 AM/PM'")),
@@ -208,27 +236,31 @@ test('validateTime function should function properly', () => {
 });
 
 function generateShifts(): Shift[] {
-  return range(15, 17).map((v, i, a) => shiftOf(DateTime.utc().plus({ days: v }).toFormat('yyyy-MM-dd')));
+  return range(15, 17).map((v, i, a) =>
+    shiftOf(DateTime.utc().plus({ days: v }).toFormat("yyyy-MM-dd"))
+  );
 }
 
-test('Malforamtted shift/time/hours should be reported by shift booking API', async () => {
-  const goodShift = shiftOf(DateTime.utc().toFormat('yyyy-MM-dd'));
-  const badShift = shiftOf(DateTime.utc().plus({ day: 45 }).toFormat('yyyy-MM-dd'));
-  const goodTime = timeOf('10:00 AM');
-  const badTime = timeOf('13:00 AM');
+test("Malformed shift/time/hours should be reported by shift booking API", async () => {
+  const goodShift = shiftOf(DateTime.utc().toFormat("yyyy-MM-dd"));
+  const badShift = shiftOf(
+    DateTime.utc().plus({ day: 45 }).toFormat("yyyy-MM-dd"),
+  );
+  const goodTime = timeOf("10:00 AM");
+  const badTime = timeOf("13:00 AM");
   const goodHours = hoursOf(3);
   const badHours = hoursOf(2);
 
   const nomadAddress = new a.Address(
-    a.address1Of('85-93 Commonwealth St'),
-    a.suburbOf('Surry Hills'),
-    a.stateOf('NSW'),
-    a.postcodeOf('2010'),
+    a.address1Of("85-93 Commonwealth St"),
+    a.suburbOf("Surry Hills"),
+    a.stateOf("NSW"),
+    a.postcodeOf("2010"),
     false,
     none,
     none,
     none,
-    some(new a.CompanyName('Nomad')),
+    some(new a.CompanyName("Nomad")),
     none,
   );
 
@@ -240,11 +272,13 @@ test('Malforamtted shift/time/hours should be reported by shift booking API', as
     goodHours,
     runnerNumberOf(1),
     Vehicle.Sedan,
-    [equipmentOf('trolley')],
-    noteOf('Be on time'),
+    [equipmentOf("trolley")],
+    noteOf("Be on time"),
   )(configProvider);
 
-  expect(await badShiftResult()).toStrictEqual(left(new Error('Given date is after 30 days later; or is before now.')));
+  expect(await badShiftResult()).toStrictEqual(
+    left(new Error("Given date is after 30 days later; or is before now.")),
+  );
 
   const badTimeResult = bookShifts(
     nomadAddress,
@@ -254,11 +288,13 @@ test('Malforamtted shift/time/hours should be reported by shift booking API', as
     goodHours,
     runnerNumberOf(1),
     Vehicle.Sedan,
-    [equipmentOf('trolley')],
-    noteOf('Be on time'),
+    [equipmentOf("trolley")],
+    noteOf("Be on time"),
   )(configProvider);
 
-  expect(await badTimeResult()).toStrictEqual(left(new Error('[Malformation] please check the hours and minutes')));
+  expect(await badTimeResult()).toStrictEqual(
+    left(new Error("[Malformation] please check the hours and minutes")),
+  );
 
   const badHoursResult = bookShifts(
     nomadAddress,
@@ -268,15 +304,19 @@ test('Malforamtted shift/time/hours should be reported by shift booking API', as
     badHours,
     runnerNumberOf(1),
     Vehicle.Sedan,
-    [equipmentOf('trolley')],
-    noteOf('Be on time'),
+    [equipmentOf("trolley")],
+    noteOf("Be on time"),
   )(configProvider);
 
-  expect(await badHoursResult()).toStrictEqual(left(new Error('Hours must > 3')));
+  expect(await badHoursResult()).toStrictEqual(
+    left(new Error("Hours must > 3")),
+  );
 });
 
-test('Should successfully book shifts', async () => {
-  mockserver.post('/shift').withHeaders({ Authorization: 'bearer this-api-key' }).thenReply(
+test("Should successfully book shifts", async () => {
+  mockserver.post("/shift").withHeaders(
+    { Authorization: "bearer this-api-key" },
+  ).thenReply(
     200,
     `{
         "errorCode":0,
@@ -301,15 +341,15 @@ test('Should successfully book shifts', async () => {
   );
 
   const pickUpAddress = new a.Address(
-    a.address1Of('85-93 Commonwealth St'),
-    a.suburbOf('Surry Hills'),
-    a.stateOf('NSW'),
-    a.postcodeOf('2010'),
+    a.address1Of("85-93 Commonwealth St"),
+    a.suburbOf("Surry Hills"),
+    a.stateOf("NSW"),
+    a.postcodeOf("2010"),
     false,
-    some(a.contactNameOf('Richard Chuo')),
-    some(a.contactNumberOf('02 8072 4146')),
+    some(a.contactNameOf("Richard Chuo")),
+    some(a.contactNumberOf("02 8072 4146")),
     none,
-    some(a.companyNameOf('Nomad')),
+    some(a.companyNameOf("Nomad")),
     none,
   );
 
@@ -318,25 +358,36 @@ test('Should successfully book shifts', async () => {
     pickUpAddress,
     p.Type.Grocery,
     generateShifts(),
-    timeOf('10:00 AM'),
+    timeOf("10:00 AM"),
     hoursOf(3),
     runnerNumberOf(0),
     Vehicle.Sedan,
-    [equipmentOf('trolley')],
-    noteOf('Be on time'),
+    [equipmentOf("trolley")],
+    noteOf("Be on time"),
   )(configProvider)();
 
   expect(bs).toStrictEqual(
     right([
-      new ShiftInfo(shiftIdOf('b3d1c5cc-27a3-4683-3c81-6ed6561fe9f3'), shiftTimeOf('2020-07-19 10:00:00+1000')),
-      new ShiftInfo(shiftIdOf('6c25d135-0f2b-f330-9f6f-ba7bead1ab81'), shiftTimeOf('2020-07-20 10:00:00+1000')),
-      new ShiftInfo(shiftIdOf('2e1761ac-dbee-7555-4107-b65aca24db4f'), shiftTimeOf('2020-07-21 10:00:00+1000')),
+      new ShiftInfo(
+        shiftIdOf("b3d1c5cc-27a3-4683-3c81-6ed6561fe9f3"),
+        shiftTimeOf("2020-07-19 10:00:00+1000"),
+      ),
+      new ShiftInfo(
+        shiftIdOf("6c25d135-0f2b-f330-9f6f-ba7bead1ab81"),
+        shiftTimeOf("2020-07-20 10:00:00+1000"),
+      ),
+      new ShiftInfo(
+        shiftIdOf("2e1761ac-dbee-7555-4107-b65aca24db4f"),
+        shiftTimeOf("2020-07-21 10:00:00+1000"),
+      ),
     ]),
   );
 });
 
-test('A job booking in an existing shift should creating a job instantly', async () => {
-  mockserver.post('/book/instant').withHeaders({ Authorization: 'bearer this-api-key' }).twice().thenReply(
+test("A job booking in an existing shift should creating a job instantly", async () => {
+  mockserver.post("/book/instant").withHeaders(
+    { Authorization: "bearer this-api-key" },
+  ).twice().thenReply(
     200,
     `{
         "errorCode":0,
@@ -404,7 +455,9 @@ test('A job booking in an existing shift should creating a job instantly', async
       }`,
   );
 
-  mockserver.post('/shift').withHeaders({ Authorization: 'bearer this-api-key' }).twice().thenReply(
+  mockserver.post("/shift").withHeaders(
+    { Authorization: "bearer this-api-key" },
+  ).twice().thenReply(
     200,
     `{
         "errorCode":0,
@@ -421,35 +474,35 @@ test('A job booking in an existing shift should creating a job instantly', async
   );
 
   const nomadAddress = new a.Address(
-    a.address1Of('85-93 Commonwealth St'),
-    a.suburbOf('Surry Hills'),
-    a.stateOf('NSW'),
-    a.postcodeOf('2010'),
+    a.address1Of("580 Darling Street"),
+    a.suburbOf("Rozelle"),
+    a.stateOf("NSW"),
+    a.postcodeOf("2039"),
     false,
     none,
     none,
     none,
-    some(new a.CompanyName('Nomad')),
+    some(a.companyNameOf("Fourth Fish Cafe - Rozelle")),
     none,
   );
 
   const addressTo = new a.Address(
-    a.address1Of('100 Pitt St'),
-    a.suburbOf('Sydney'),
-    a.stateOf('NSW'),
-    a.postcodeOf('2000'),
+    a.address1Of("100 Pitt St"),
+    a.suburbOf("Sydney"),
+    a.stateOf("NSW"),
+    a.postcodeOf("2000"),
   );
-  const dt = DateTime.local().setZone('Australia/Sydney').plus({ days: 2 });
+  const dt = DateTime.local().setZone("Australia/Sydney").plus({ days: 2 });
   const nomadShifts = bookShifts(
     nomadAddress,
     p.Type.Grocery,
-    [shiftOf(dt.toFormat('yyyy-MM-dd'))],
-    timeOf('11:00 AM'),
+    [shiftOf(dt.toFormat("yyyy-MM-dd"))],
+    timeOf("11:00 AM"),
     hoursOf(3),
     runnerNumberOf(1),
     Vehicle.Sedan,
-    [equipmentOf('trolley')],
-    noteOf('Be on time'),
+    [equipmentOf("trolley")],
+    noteOf("Be on time"),
   )(configProvider);
 
   const aParcel = new p.Parcel(p.Type.Grocery, new p.ParcelNumber(2));
@@ -458,34 +511,34 @@ test('A job booking in an existing shift should creating a job instantly', async
     addressTo,
     [aParcel],
     dt.set({ hour: 11, minute: 0, second: 0 }),
-    descriptionOf('Sushi set'),
+    descriptionOf("Sushi set"),
   )(configProvider);
 
   const firstBatch = chain((s) => resp)(nomadShifts);
 
   const haidilaoAddress = new a.Address(
-    a.address1Of('8-1 Anderson St'),
-    a.suburbOf('Chatswood'),
-    a.stateOf('NSW'),
-    a.postcodeOf('2067'),
+    a.address1Of("8-1 Anderson St"),
+    a.suburbOf("Chatswood"),
+    a.stateOf("NSW"),
+    a.postcodeOf("2067"),
     false,
     none,
     none,
     none,
-    some(new a.CompanyName('Haidilao')),
+    some(new a.CompanyName("Haidilao")),
     none,
   );
 
   const haidilaoshift = bookShifts(
     haidilaoAddress,
     p.Type.Grocery,
-    [shiftOf(dt.toFormat('yyyy-MM-dd'))],
-    timeOf('12:00 PM'),
+    [shiftOf(dt.toFormat("yyyy-MM-dd"))],
+    timeOf("12:00 PM"),
     hoursOf(3),
     runnerNumberOf(1),
     Vehicle.Van,
-    [equipmentOf('trolley')],
-    noteOf('Be on time'),
+    [equipmentOf("trolley")],
+    noteOf("Be on time"),
   )(configProvider);
 
   const hResponse = instantGoShift(
@@ -493,7 +546,7 @@ test('A job booking in an existing shift should creating a job instantly', async
     addressTo,
     [aParcel],
     dt.set({ hour: 12, minute: 0, second: 0 }),
-    descriptionOf('Hot pot'),
+    descriptionOf("Hot pot"),
   )(configProvider);
 
   const secondBatch = chain((x) => hResponse)(haidilaoshift);
@@ -501,12 +554,19 @@ test('A job booking in an existing shift should creating a job instantly', async
   const result = await chain((x) => secondBatch)(firstBatch)();
 
   expect(result).toStrictEqual(
-    right(new JobInfo(jobIdOf('894c0a10-fdb9-fb27-8ddb-d81c94a6e46c'), trackingCodeOf('7OSPD3'))),
+    right(
+      new JobInfo(
+        jobIdOf("894c0a10-fdb9-fb27-8ddb-d81c94a6e46c"),
+        trackingCodeOf("7OSPD3"),
+      ),
+    ),
   );
 });
 
-test('Cancel a job', async () => {
-  mockserver.post('/book/instant').withHeaders({ Authorization: 'bearer this-api-key' }).thenReply(
+test("Cancel a job", async () => {
+  mockserver.post("/book/instant").withHeaders(
+    { Authorization: "bearer this-api-key" },
+  ).thenReply(
     200,
     `{
         "errorCode":0,
@@ -575,34 +635,34 @@ test('Cancel a job', async () => {
   );
 
   mockserver
-    .delete('/job')
-    .withHeaders({ Authorization: 'bearer this-api-key' })
-    .withQuery({ id: '894c0a10-fdb9-fb27-8ddb-d81c94a6e46c' })
+    .delete("/job")
+    .withHeaders({ Authorization: "bearer this-api-key" })
+    .withQuery({ id: "894c0a10-fdb9-fb27-8ddb-d81c94a6e46c" })
     .thenReply(
       200,
       `{"errorCode":0,"message":"","title":"","debug":"","result":{"jobId":"894c0a10-fdb9-fb27-8ddb-d81c94a6e46c"}}`,
     );
 
-  const dt = DateTime.local().setZone('Australia/Sydney').plus({ days: 2 });
+  const dt = DateTime.local().setZone("Australia/Sydney").plus({ days: 2 });
 
   const haidilaoAddress = new a.Address(
-    a.address1Of('8-1 Anderson St'),
-    a.suburbOf('Chatswood'),
-    a.stateOf('NSW'),
-    a.postcodeOf('2067'),
+    a.address1Of("8-1 Anderson St"),
+    a.suburbOf("Chatswood"),
+    a.stateOf("NSW"),
+    a.postcodeOf("2067"),
     false,
     none,
     none,
     none,
-    some(new a.CompanyName('Haidilao')),
+    some(new a.CompanyName("Haidilao")),
     none,
   );
 
   const addressTo = new a.Address(
-    a.address1Of('100 Pitt St'),
-    a.suburbOf('Sydney'),
-    a.stateOf('NSW'),
-    a.postcodeOf('2000'),
+    a.address1Of("100 Pitt St"),
+    a.suburbOf("Sydney"),
+    a.stateOf("NSW"),
+    a.postcodeOf("2000"),
   );
 
   const aParcel = new p.Parcel(p.Type.Grocery, new p.ParcelNumber(2));
@@ -612,21 +672,25 @@ test('Cancel a job', async () => {
     addressTo,
     [aParcel],
     dt.set({ hour: 11, minute: 0, second: 0 }),
-    descriptionOf('Hot pot'),
+    descriptionOf("Hot pot"),
   )(configProvider);
 
-  const cancelJobResult = await chain<Error, JobInfo, JobId>((info) => cancelJob(info.id)(configProvider))(hResponse)();
+  const cancelJobResult = await chain<Error, JobInfo, JobId>((info) =>
+    cancelJob(info.id)(configProvider)
+  )(hResponse)();
 
-  expect(cancelJobResult).toStrictEqual(right(jobIdOf('894c0a10-fdb9-fb27-8ddb-d81c94a6e46c')));
+  expect(cancelJobResult).toStrictEqual(
+    right(jobIdOf("894c0a10-fdb9-fb27-8ddb-d81c94a6e46c")),
+  );
 });
 
-test('Should successfully fetch job info', async () => {
-  const dt = DateTime.local().setZone('Australia/Sydney').plus({ day: 1 });
+test("Should successfully fetch job info", async () => {
+  const dt = DateTime.local().setZone("Australia/Sydney").plus({ day: 1 });
 
   mockserver
-    .get('/job/status')
-    .withHeaders({ Authorization: 'bearer this-api-key' })
-    .withQuery({ date: dt.toFormat('yyyy-MM-dd') })
+    .get("/job/status")
+    .withHeaders({ Authorization: "bearer this-api-key" })
+    .withQuery({ date: dt.toFormat("yyyy-MM-dd") })
     .thenReply(
       200,
       `{
@@ -658,39 +722,51 @@ test('Should successfully fetch job info', async () => {
 
   expect(await jobsStatus()).toStrictEqual(
     right([
-      { jobId: jobIdOf('179d1763-76ac-e2ae-d19a-4d99130b19d0'), ref: '', status: Status.Delivering },
-      { jobId: jobIdOf('c96af157-4805-c968-9c33-8b93d1b94ce4'), ref: '', status: Status.Cancelled },
-      { jobId: jobIdOf('a85889f8-943d-37fb-5094-a0011a69a2d5'), ref: '', status: Status.BookedIn },
+      {
+        jobId: jobIdOf("179d1763-76ac-e2ae-d19a-4d99130b19d0"),
+        ref: "",
+        status: Status.Delivering,
+      },
+      {
+        jobId: jobIdOf("c96af157-4805-c968-9c33-8b93d1b94ce4"),
+        ref: "",
+        status: Status.Cancelled,
+      },
+      {
+        jobId: jobIdOf("a85889f8-943d-37fb-5094-a0011a69a2d5"),
+        ref: "",
+        status: Status.BookedIn,
+      },
     ]),
   );
 });
 
-test('Should successfully get a quote', async () => {
-  const dt = DateTime.local().setZone('Australia/Sydney').plus({ day: 1 });
+test("Should successfully get a quote", async () => {
+  const dt = DateTime.local().setZone("Australia/Sydney").plus({ day: 1 });
 
   const fromAddress = new a.Address(
-    a.address1Of('1 Anderson St'),
-    a.suburbOf('Chatswood'),
-    a.stateOf('NSW'),
-    a.postcodeOf('2067'),
+    a.address1Of("1 Anderson St"),
+    a.suburbOf("Chatswood"),
+    a.stateOf("NSW"),
+    a.postcodeOf("2067"),
     false,
-    some(a.contactNameOf('John Doe')),
-    some(a.contactNumberOf('02 8072 4146')),
+    some(a.contactNameOf("John Doe")),
+    some(a.contactNumberOf("02 8072 4146")),
     none,
     none,
-    some(a.unitOf('Shop 607')),
+    some(a.unitOf("Shop 607")),
   );
 
   const fromAddJson = _.omitBy(a.toJson(fromAddress), _.isNull);
 
   const toAddress = new a.Address(
-    a.address1Of('Ross St'),
-    a.suburbOf('Naremburn'),
-    a.stateOf('NSW'),
-    a.postcodeOf('2065'),
+    a.address1Of("Ross St"),
+    a.suburbOf("Naremburn"),
+    a.stateOf("NSW"),
+    a.postcodeOf("2065"),
     false,
-    some(a.contactNameOf('John Doe')),
-    some(a.contactNumberOf('02 8072 4146')),
+    some(a.contactNameOf("John Doe")),
+    some(a.contactNumberOf("02 8072 4146")),
     none,
     none,
     none,
@@ -698,9 +774,11 @@ test('Should successfully get a quote', async () => {
 
   const toAddJson = _.omitBy(a.toJson(toAddress), _.isNull);
   const testParcels = [new p.Parcel(p.Type.Grocery, p.parcelNumberOf(1))];
-  const testParcelsJson = arrayMap<p.Parcel, object>((pl) => _.omitBy(p.toJson(pl), _.isNull))(testParcels);
-  const testPickup = dt.set({ hour: 19, minute: 50 })
-  const testPickupStr = testPickup.toFormat('yyyy-MM-dd HH:mm:ssZZZ');
+  const testParcelsJson = arrayMap<p.Parcel, object>((pl) =>
+    _.omitBy(p.toJson(pl), _.isNull)
+  )(testParcels);
+  const testPickup = dt.set({ hour: 19, minute: 50 });
+  const testPickupStr = testPickup.toFormat("yyyy-MM-dd HH:mm:ssZZZ");
 
   const testGoNowBody = {
     addressFrom: fromAddJson,
@@ -721,9 +799,14 @@ test('Should successfully get a quote', async () => {
   };
 
   mockserver
-    .post('/quote')
+    .post("/quote")
     .withJsonBodyIncluding(testGoNowBody)
-    .withHeaders({ Authorization: 'bearer this-api-key', 'Content-Type': 'application/json' })
+    .withHeaders(
+      {
+        Authorization: "bearer this-api-key",
+        "Content-Type": "application/json",
+      },
+    )
     .thenReply(
       200,
       `{
@@ -818,9 +901,14 @@ test('Should successfully get a quote', async () => {
     );
 
   mockserver
-    .post('/quote')
+    .post("/quote")
     .withJsonBodyIncluding(testGoSameDayBody)
-    .withHeaders({ Authorization: 'bearer this-api-key', 'Content-Type': 'application/json' })
+    .withHeaders(
+      {
+        Authorization: "bearer this-api-key",
+        "Content-Type": "application/json",
+      },
+    )
     .thenReply(
       200,
       `{
@@ -1055,13 +1143,18 @@ test('Should successfully get a quote', async () => {
     (e) => fail(`Failed to get any quote, reason: ${e.message}`),
     (q) => {
       expect(q.distance).toBe(12.45);
-      expect(q.expiredAt.setZone('Australia/Sydney').toFormat('yyyy-MM-dd HH:mm:ssZZZ')).toBe(
-        '2020-07-13 16:05:01+1000',
+      expect(
+        q.expiredAt.setZone("Australia/Sydney").toFormat(
+          "yyyy-MM-dd HH:mm:ssZZZ",
+        ),
+      ).toBe(
+        "2020-07-13 16:05:01+1000",
       );
       optFold<Quote[], void>(
-        () => fail('No GoNOW quote returned'),
+        () => fail("No GoNOW quote returned"),
         (quotes) => {
-          expect(arrayMap<Quote, number>((qx) => qx.amount)(quotes)).toStrictEqual([28.6, 34.1, 56.1, 23.1, 56.1]);
+          expect(arrayMap<Quote, number>((qx) => qx.amount)(quotes))
+            .toStrictEqual([28.6, 34.1, 56.1, 23.1, 56.1]);
         },
       )(q.goNowQuotes);
     },
@@ -1080,11 +1173,15 @@ test('Should successfully get a quote', async () => {
     (e) => fail(`Failed to get any quote, reason: ${e.message}`),
     (q) => {
       expect(q.distance).toBe(12.45);
-      expect(q.expiredAt.setZone('Australia/Sydney').toFormat('yyyy-MM-dd HH:mm:ssZZZ')).toBe(
-        '2020-07-13 16:05:02+1000',
+      expect(
+        q.expiredAt.setZone("Australia/Sydney").toFormat(
+          "yyyy-MM-dd HH:mm:ssZZZ",
+        ),
+      ).toBe(
+        "2020-07-13 16:05:02+1000",
       );
       optFold<Quote[], void>(
-        () => fail('No GoSAMEDAY quote returned'),
+        () => fail("No GoSAMEDAY quote returned"),
         (quotes) => {
           expect(
             arrayFilter<Quote>((q) => {
@@ -1095,4 +1192,93 @@ test('Should successfully get a quote', async () => {
       )(q.goSameDayQuotes);
     },
   )(await goSameDayResult(configProvider)());
+});
+
+test("Should successfully get a quote and book a job", async () => {
+  mockserver
+    .post("/book")
+    .withJsonBodyIncluding(
+      {
+        quoteId: "7e325699-6244-ebd1-e47d-4e7ddf02cdf1",
+        description: "a testing description",
+      },
+    )
+    .withHeaders(
+      {
+        Authorization: "bearer this-api-key",
+        "Content-Type": "application/json",
+      },
+    )
+    .thenReply(
+      200,
+      `{
+        "jobId":"dfce81e4-eb62-8391-537b-6050ce7b8add",
+        "number":"1054231-7052",
+        "ref":"",
+        "ref2":"",
+        "zone":"",
+        "zonerun":null,
+        "category":"gonow",
+        "barcodes":[
+           {
+              "text":"1054231-7052-1"
+           }
+        ],
+        "trackingCode":"4OBARS",
+        "description":"a test",
+        "note":"",
+        "status":"booked_in",
+        "partiallyPickedUp":false,
+        "pickUpAfter":"2020-07-14 19:50:00+1000",
+        "dropOffBy":"2020-07-14 21:00:00+1000",
+        "estimatedPickupTime":null,
+        "estimatedDropOffTime":null,
+        "actualPickupTime":null,
+        "actualDropOffTime":null,
+        "createdTime":"2020-07-14 19:36:48+1000",
+        "addressFrom":{
+           "unit":"Shop 607",
+           "address1":"1 Anderson St",
+           "suburb":"Chatswood",
+           "state":"NSW",
+           "postcode":"2067",
+           "companyName":"Commercial",
+           "contactName":"John Doe",
+           "contactNumber":"02 8072 4146",
+           "contactEmail":null,
+           "sendUpdateSMS":false,
+           "isCommercial":true
+        },
+        "addressTo":{
+           "unit":"",
+           "address1":"Ross St",
+           "suburb":"Naremburn",
+           "state":"NSW",
+           "postcode":"2065",
+           "companyName":"Residential",
+           "contactName":"John Doe",
+           "contactNumber":"02 8072 4146",
+           "contactEmail":null,
+           "sendUpdateSMS":false,
+           "isCommercial":false
+        },
+        "atl":false,
+        "runner":null,
+        "signature":null
+      }`,
+    );
+
+  const result = await bookJob({
+    quoteId: quoteIdOf("7e325699-6244-ebd1-e47d-4e7ddf02cdf1"),
+    description: bjDescriptionOf("a testing description"),
+  })(configProvider)();
+
+  expect(result).toStrictEqual(
+    right(
+      new JobInfo(
+        jobIdOf("dfce81e4-eb62-8391-537b-6050ce7b8add"),
+        trackingCodeOf("4OBARS"),
+      ),
+    ),
+  );
 });
