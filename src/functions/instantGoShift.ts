@@ -1,42 +1,26 @@
 import * as a from '../models/address';
 import * as p from '../models/parcel';
 import { DateTime } from 'luxon';
-import { Either, left, right } from 'fp-ts/lib/Either';
-import { TaskEither, tryCatch, fromEither, chain } from 'fp-ts/lib/TaskEither';
+import { Either, left, right, either, fold } from 'fp-ts/lib/Either';
+import { TaskEither, tryCatch, fromEither, chain, taskEither } from 'fp-ts/lib/TaskEither';
 import * as arr from 'fp-ts/lib/Array';
+import { Do } from 'fp-ts-contrib/lib/Do';
 import * as requestPromise from 'request-promise-native';
 import * as _ from 'lodash';
-import * as env from '../gopeople.config';
+import { jobIdOf, trackingCodeOf, JobInfo } from '../models/jobInfo';
+import { ConfigProvider, GoPeopleHost, GoPeopleAPIKey } from '../functions/config/configProvider';
 
-export { Description, descriptionOf, JobId, jobIdOf, TrackingCode, trackingCodeOf, JobInfo, instantGoShift };
+export { Description, descriptionOf, instantGoShift };
 
 class Description {
-  constructor(readonly txt: string) {}
+  constructor(readonly txt: string) { }
 }
 
 function descriptionOf(txt: string) {
   return new Description(txt);
 }
 
-class JobId {
-  constructor(readonly id: string) {}
-}
-
-function jobIdOf(id: string): JobId {
-  return new JobId(id);
-}
-
-class TrackingCode {
-  constructor(readonly code: string) {}
-}
-
-function trackingCodeOf(code: string): TrackingCode {
-  return new TrackingCode(code);
-}
-
-class JobInfo {
-  constructor(readonly id: JobId, readonly code: TrackingCode) {}
-}
+type Config = { host: GoPeopleHost; key: GoPeopleAPIKey };
 
 /**
  * Instantly book a GoSHIFT job
@@ -62,7 +46,7 @@ class JobInfo {
  *   none,
  * );
  *
- * const addressto = new a.Address(
+ * const addressTo = new a.Address(
  *   a.address1Of('100 Pitt St'),
  *   a.suburbOf('Sydney'),
  *   a.stateOf('NSW'),
@@ -71,11 +55,11 @@ class JobInfo {
  * const aParcel = new p.Parcel(p.Type.Grocery, new p.ParcelNumber(2));
  * const resp = await instantGoShift(
  *   addressFrom,
- *   addressto,
+ *   addressTo,
  *   [aParcel],
  *   DateTime.local().setZone('utc'),
  *   descriptionOf('Sushi set'),
- * )();
+ * )(configProvider)();
  *
  * expect(resp).toStrictEqual(
  *   right(new JobInfo(jobIdOf('894c0a10-fdb9-fb27-8ddb-d81c94a6e46c'),
@@ -86,7 +70,7 @@ class JobInfo {
  *
  * __Why TaskEither?__
  *
- * Please read the explantion in the function {@link bookShifts}.
+ * Please read the explanation in the function {@link bookShifts}.
  *
  * @param fromAddress
  * @param toAddress
@@ -100,24 +84,24 @@ function instantGoShift(
   parcels: p.Parcel[],
   pickUpDate: DateTime,
   description: Description,
-): TaskEither<Error, JobInfo> {
+): (configProvider: ConfigProvider) => TaskEither<Error, JobInfo> {
   const b = {
-    addressFrom: _.omitBy(a.toJson(fromAddress), _.isNull),
-    addressTo: _.omitBy(a.toJson(toAddress), _.isNull),
-    parcels: arr.map<p.Parcel, object>((x) => _.omitBy(p.toJson(x), _.isNull))(parcels),
+    addressFrom: a.toJson(fromAddress),
+    addressTo: a.toJson(toAddress),
+    parcels: arr.map<p.Parcel, object>((x) => p.toJson(x))(parcels),
     pickUpDate: pickUpDate.toFormat('yyyy-MM-dd HH:mm:ssZZZ'),
     description: description.txt,
   };
 
-  return chain(fromEither)(
-    tryCatch(
-      async () =>
-        requestPromise
+  return (c) => {
+    return chain<Error, Config, JobInfo>((config) => {
+      return async () => {
+        return requestPromise
           .post({
             method: 'POST',
-            uri: `${env.goPeopleHost}/book/instant`,
+            uri: `${config.host.h}/book/instant`,
             headers: {
-              Authorization: `bearer ${env.goPeopleKey}`,
+              Authorization: `bearer ${config.key.key}`,
             },
             body: b,
             json: true,
@@ -127,10 +111,17 @@ function instantGoShift(
           })
           .catch((err) => {
             return left<Error, JobInfo>(new Error(`'/book/instant' API request error: ${JSON.stringify(err)}`));
-          }),
-      (err) => new Error(`'/book/instant' API request error: ${JSON.stringify(err)}`),
-    ),
-  );
+          });
+      };
+    })(
+      Do(taskEither)
+        .bind('h', c.host())
+        .bind('k', c.key())
+        .return(({ h, k }) => {
+          return { host: h, key: k };
+        }),
+    );
+  };
 }
 
 function parseResponse(resp: object): Either<Error, JobInfo> {
@@ -153,7 +144,7 @@ function parseResponse(resp: object): Either<Error, JobInfo> {
         result = left(new Error('No job ID nor tracking code'));
       }
     } else {
-      result = left(new Error('No GoSHIFT result'));
+      result = left(new Error('No job info result'));
     }
   }
 

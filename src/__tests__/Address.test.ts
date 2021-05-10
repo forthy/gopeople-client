@@ -16,7 +16,7 @@ test('Address object should be properly created', () => {
     a.postcodeOf(zipCodeStr),
   );
 
-  expect(_.omitBy(a.toJson(address), _.isNull)).toStrictEqual({
+  expect(_.omitBy(a.toJson(address), _.isUndefined)).toStrictEqual({
     address1: address1Str,
     suburb: suburbStr,
     state: stateStr,
@@ -40,7 +40,7 @@ test('Address object should be properly created', () => {
     none,
   );
 
-  expect(_.omitBy(a.toJson(commercialAdd), _.isNull)).toStrictEqual({
+  expect(_.omitBy(a.toJson(commercialAdd), _.isUndefined)).toStrictEqual({
     address1: address1Str,
     suburb: suburbStr,
     state: stateStr,

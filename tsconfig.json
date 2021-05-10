@@ -4,7 +4,10 @@
     "module": "commonjs",
     "declaration": true,
     "outDir": "./lib",
-    "strict": true
+    "strict": true,
+    "noImplicitAny": true,
+    "preserveConstEnums": true,
+    "strictNullChecks": true
   },
   "include": [
     "src"

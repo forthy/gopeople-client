@@ -1,6 +1,6 @@
 {
   "name": "go-people-client",
-  "version": "1.0.0",
+  "version": "1.0.3",
   "description": "Provides a client to Austria's GoPeople service.",
   "main": "lib/index.js",
   "types": "lib/index.d.ts",
@@ -9,22 +9,22 @@
     "prepublishOnly": "npm test && npm run lint",
     "preversion": "npm run lint",
     "test": "jest --config=jestconfig.json",
-    "test:single": "jest --config jestconfig.json --detectOpenHandles -i src/__tests__/GoPeopleClient.test.ts -t 'validateTime function should function properly'",
+    "test:single": "jest --config jestconfig.json --detectOpenHandles -i src/__tests__/Address.test.ts",
     "build": "tsc",
     "format": "prettier --write \"src/**/*.(ts|js)\"",
     "lint": "tslint -p tsconfig.json",
     "version": "npm run format && git add -A src",
     "postversion": "git push && git push --tags",
     "test:coverage": "jest --config=jestconfig.json --coverage",
-    "typedoc": "typedoc"
+    "typedoc": "typedoc --excludePrivate --excludeNotExported"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/forthy/go-people-client"
+    "url": "git+https://github.com/inlineapps/gopeople-client"
   },
-  "homepage": "https://github.com/forthy/go-people-client#readme",
+  "homepage": "https://github.com/inlineapps/gopeople-client#readme",
   "bug": {
-    "url": "https://github.com/forthy/go-people-client/issues"
+    "url": "https://github.com/inlineapps/gopeople-client/issues"
   },
   "keywords": [
     "GoPeople",
@@ -38,6 +38,7 @@
     "jest": "^26.1.0",
     "mockttp": "^0.20.3",
     "prettier": "^2.0.5",
+    "testcontainers": "^2.18.3",
     "ts-jest": "^26.1.1",
     "tslint": "^6.1.2",
     "tslint-config-prettier": "^1.18.0",
@@ -52,6 +53,7 @@
     "@types/faker": "^4.1.12",
     "@types/lodash": "^4.14.157",
     "@types/luxon": "^1.24.1",
+    "@types/pg": "^7.14.3",
     "@types/request-promise-native": "^1.0.17",
     "dotenv": "^8.2.0",
     "faker": "^4.1.0",
@@ -59,6 +61,7 @@
     "fp-ts-contrib": "^0.1.17",
     "lodash": "^4.17.15",
     "luxon": "^1.24.1",
+    "pg": "^8.2.2",
     "request": "^2.88.2",
     "request-promise-native": "^1.0.8"
   }

@@ -3,4 +3,5 @@ node_modules
 .metals/
 docs/
 coverage/
+.vscode/
 
