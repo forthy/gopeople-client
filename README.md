@@ -78,7 +78,7 @@ function getQuote(options: QuoteOptions): (configProvider: ConfigProvider) => Ta
 
 How do you use `TaskEither` and handle either the error or the value?
 
-You can execute a `TaskEither`, then a `Promise<Either<Error, T>` would be return, await the returned promise, you will get the `Either`. You can use `fold` function or `getOrElse` function to acquire either an error or a expected value (please read [destructors](https://gcanti.github.io/fp-ts/modules/Either.ts.html#destructors)).
+You can execute a `TaskEither`, then a `Promise<Either<Error, T>` would be returned, await the returned promise, you will get the `Either`. You can use `fold` function or `getOrElse` function to acquire either an error or a expected value (please read [destructors](https://gcanti.github.io/fp-ts/modules/Either.ts.html#destructors)).
 
 You can refer to test cases, such as `PostgreSQLConfigProvider.test.ts` for the exact use case of the composition of several [Task](https://gcanti.github.io/fp-ts/modules/Task.ts.html)s (another kind of `TaskEither`).
 
