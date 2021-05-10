@@ -103,12 +103,12 @@ function parseResponse(resp: object): Either<Error, JobInfo> {
 
     result = left(new Error(errorStr));
   } else {
-    if (_.has(resp, "jobId") && _.has(resp, "trackingCode")) {
+    if (_.has(resp, "result.jobId") && _.has(resp, "result.trackingCode")) {
       result = right(
         new JobInfo(
-          jobIdOf(_.get(resp, "jobId")),
+          jobIdOf(_.get(resp, "result.jobId")),
           trackingCodeOf(
-            _.get(resp, "trackingCode"),
+            _.get(resp, "result.trackingCode"),
           ),
         ),
       );

@@ -32,7 +32,7 @@ class Unit {
    *
    * @param u - a string that prepresents an address unit, such as room 1
    */
-  constructor(readonly u: string) {}
+  constructor(readonly u: string) { }
 }
 
 /**
@@ -51,7 +51,7 @@ class Address1 {
    * The main address
    * @param a - the main address
    */
-  constructor(readonly a: string) {}
+  constructor(readonly a: string) { }
 }
 
 /**
@@ -63,7 +63,7 @@ function address1Of(a: string): Address1 {
 }
 
 class Suburb {
-  constructor(readonly s: string) {}
+  constructor(readonly s: string) { }
 }
 
 function suburbOf(s: string): Suburb {
@@ -71,7 +71,7 @@ function suburbOf(s: string): Suburb {
 }
 
 class State {
-  constructor(readonly s: string) {}
+  constructor(readonly s: string) { }
 }
 
 function stateOf(s: string): State {
@@ -79,7 +79,7 @@ function stateOf(s: string): State {
 }
 
 class Postcode {
-  constructor(readonly p: string) {}
+  constructor(readonly p: string) { }
 }
 
 function postcodeOf(p: string) {
@@ -87,7 +87,7 @@ function postcodeOf(p: string) {
 }
 
 class ContactName {
-  constructor(readonly name: string) {}
+  constructor(readonly name: string) { }
 }
 
 function contactNameOf(name: string) {
@@ -95,7 +95,7 @@ function contactNameOf(name: string) {
 }
 
 class ContactNumber {
-  constructor(readonly num: string) {}
+  constructor(readonly num: string) { }
 }
 
 function contactNumberOf(num: string): ContactNumber {
@@ -103,7 +103,7 @@ function contactNumberOf(num: string): ContactNumber {
 }
 
 class ContactEmail {
-  constructor(readonly mail: string) {}
+  constructor(readonly mail: string) { }
 }
 
 function contactEmailOf(mail: string): ContactEmail {
@@ -111,7 +111,7 @@ function contactEmailOf(mail: string): ContactEmail {
 }
 
 class CompanyName {
-  constructor(readonly name: string) {}
+  constructor(readonly name: string) { }
 }
 
 function companyNameOf(name: string): CompanyName {
@@ -130,7 +130,7 @@ class Address {
     readonly contactEmail: Option<ContactEmail> = none,
     readonly companyName: Option<CompanyName> = none,
     readonly unit: Option<Unit> = none,
-  ) {}
+  ) { }
 }
 
 interface IAddress {
@@ -139,12 +139,12 @@ interface IAddress {
   state: string;
   postcode: string;
   isCommercial: boolean;
-  unit?: string | null;
-  contactName?: string | null;
-  contactNumber?: string | null;
+  unit?: string;
+  contactName?: string;
+  contactNumber?: string;
   sendUpdateSMS?: boolean;
-  contactEmail?: string | null;
-  companyName?: string | null;
+  contactEmail?: string;
+  companyName?: string;
 }
 
 function toJson(a: Address): IAddress {
@@ -154,25 +154,25 @@ function toJson(a: Address): IAddress {
     state: a.state.s,
     postcode: a.postcode.p,
     isCommercial: isSome(a.companyName),
-    unit: fold<Unit, string | null>(
-      () => null,
+    unit: fold<Unit, string | undefined>(
+      () => undefined,
       (v) => v.u,
     )(a.unit),
-    contactName: fold<ContactName, string | null>(
-      () => null,
+    contactName: fold<ContactName, string | undefined>(
+      () => undefined,
       (v) => v.name,
     )(a.contactName),
-    contactNumber: fold<ContactNumber, string | null>(
-      () => null,
+    contactNumber: fold<ContactNumber, string | undefined>(
+      () => undefined,
       (v) => v.num,
     )(a.contactNumber),
     sendUpdateSMS: a.sendUpdateSMS,
-    contactEmail: fold<ContactEmail, string | null>(
-      () => null,
+    contactEmail: fold<ContactEmail, string | undefined>(
+      () => undefined,
       (v) => v.mail,
     )(a.contactEmail),
-    companyName: fold<CompanyName, string | null>(
-      () => null,
+    companyName: fold<CompanyName, string | undefined>(
+      () => undefined,
       (v) => v.name,
     )(a.companyName),
   };

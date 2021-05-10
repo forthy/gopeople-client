@@ -65,23 +65,23 @@ function getQuote(options: QuoteOptions): (configProvider: ConfigProvider) => Ta
     addressFrom: object;
     addressTo: object;
     parcels: object[];
-    pickUpAfter: string | null;
-    dropOffBy: string | null;
+    pickUpAfter?: string;
+    dropOffBy?: string;
     onDemand: boolean;
     setRun: boolean;
     selfManagement?: boolean;
   }
 
   const b: IBody = {
-    addressFrom: _.omitBy(toAddressJson(options.addressFrom), isNull),
-    addressTo: _.omitBy(toAddressJson(options.addressTo), isNull),
-    parcels: options.parcels.map((v, i, a) => _.omitBy(toParcelJson(v), _.isNull)),
-    pickUpAfter: optFold<DateTime, string | null>(
-      () => null,
+    addressFrom: toAddressJson(options.addressFrom),
+    addressTo: toAddressJson(options.addressTo),
+    parcels: options.parcels.map((v, i, a) => toParcelJson(v)),
+    pickUpAfter: optFold<DateTime, string | undefined>(
+      () => undefined,
       (d) => d.toFormat('yyyy-MM-dd HH:mm:ssZZZ'),
     )(options.pickUpAfter),
-    dropOffBy: optFold<DateTime, string | null>(
-      () => null,
+    dropOffBy: optFold<DateTime, string | undefined>(
+      () => undefined,
       (d) => d.toFormat('yyyy-MM-dd HH:mm:ssZZZ'),
     )(options.dropOffBy),
     onDemand: options.shiftType.type === 'GoNOW' ? true : false,
@@ -197,7 +197,7 @@ function parseResponse(resp: object): Either<Error, QuoteInfo> {
         result = left(new Error('No distance or expiry'));
       }
     } else {
-      result = left(new Error('No GoSHIFT result'));
+      result = left(new Error('No quote info result'));
     }
   }
 

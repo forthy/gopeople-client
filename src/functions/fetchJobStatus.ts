@@ -124,7 +124,7 @@ function parseResponse(resp: object): Either<Error, JobStatus[]> {
         result = left(new Error('No job ID nor tracking code'));
       }
     } else {
-      result = left(new Error('No GoSHIFT result'));
+      result = left(new Error('No job status result'));
     }
   }
 

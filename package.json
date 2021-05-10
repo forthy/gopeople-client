@@ -1,6 +1,6 @@
 {
   "name": "go-people-client",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Provides a client to Austria's GoPeople service.",
   "main": "lib/index.js",
   "types": "lib/index.d.ts",
@@ -9,7 +9,7 @@
     "prepublishOnly": "npm test && npm run lint",
     "preversion": "npm run lint",
     "test": "jest --config=jestconfig.json",
-    "test:single": "jest --config jestconfig.json --detectOpenHandles -i src/__tests__/GoPeopleClient.test.ts -t 'Should successfully get a quote and book a job'",
+    "test:single": "jest --config jestconfig.json --detectOpenHandles -i src/__tests__/Address.test.ts",
     "build": "tsc",
     "format": "prettier --write \"src/**/*.(ts|js)\"",
     "lint": "tslint -p tsconfig.json",

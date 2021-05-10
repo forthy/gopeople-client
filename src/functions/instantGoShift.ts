@@ -13,7 +13,7 @@ import { ConfigProvider, GoPeopleHost, GoPeopleAPIKey } from '../functions/confi
 export { Description, descriptionOf, instantGoShift };
 
 class Description {
-  constructor(readonly txt: string) {}
+  constructor(readonly txt: string) { }
 }
 
 function descriptionOf(txt: string) {
@@ -86,9 +86,9 @@ function instantGoShift(
   description: Description,
 ): (configProvider: ConfigProvider) => TaskEither<Error, JobInfo> {
   const b = {
-    addressFrom: _.omitBy(a.toJson(fromAddress), _.isNull),
-    addressTo: _.omitBy(a.toJson(toAddress), _.isNull),
-    parcels: arr.map<p.Parcel, object>((x) => _.omitBy(p.toJson(x), _.isNull))(parcels),
+    addressFrom: a.toJson(fromAddress),
+    addressTo: a.toJson(toAddress),
+    parcels: arr.map<p.Parcel, object>((x) => p.toJson(x))(parcels),
     pickUpDate: pickUpDate.toFormat('yyyy-MM-dd HH:mm:ssZZZ'),
     description: description.txt,
   };
@@ -144,7 +144,7 @@ function parseResponse(resp: object): Either<Error, JobInfo> {
         result = left(new Error('No job ID nor tracking code'));
       }
     } else {
-      result = left(new Error('No GoSHIFT result'));
+      result = left(new Error('No job info result'));
     }
   }
 

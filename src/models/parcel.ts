@@ -37,7 +37,7 @@ enum Type {
 }
 
 class ProductId {
-  constructor(readonly id: string) {}
+  constructor(readonly id: string) { }
 }
 
 function productIdOf(id: string): ProductId {
@@ -46,7 +46,7 @@ function productIdOf(id: string): ProductId {
 
 // required for Shopping Cart endpoint
 class Sku {
-  constructor(readonly s: string) {}
+  constructor(readonly s: string) { }
 }
 
 function skuOf(s: string): Sku {
@@ -54,7 +54,7 @@ function skuOf(s: string): Sku {
 }
 
 class Name {
-  constructor(readonly n: string) {}
+  constructor(readonly n: string) { }
 }
 
 function nameOf(n: string): Name {
@@ -63,7 +63,7 @@ function nameOf(n: string): Name {
 
 // number of parcels
 class ParcelNumber {
-  constructor(readonly num: number) {}
+  constructor(readonly num: number) { }
 }
 
 function parcelNumberOf(num: number): ParcelNumber {
@@ -72,7 +72,7 @@ function parcelNumberOf(num: number): ParcelNumber {
 
 // required when type is custom (cm)
 class Width {
-  constructor(readonly w: number) {}
+  constructor(readonly w: number) { }
 }
 
 function widthOf(w: number): Width {
@@ -81,7 +81,7 @@ function widthOf(w: number): Width {
 
 // required when type is custom (cm)
 class Height {
-  constructor(readonly h: number) {}
+  constructor(readonly h: number) { }
 }
 
 function heightOf(h: number): Height {
@@ -89,7 +89,7 @@ function heightOf(h: number): Height {
 }
 // required when type is custom (cm)
 class Length {
-  constructor(readonly l: number) {}
+  constructor(readonly l: number) { }
 }
 
 function lengthOf(l: number): Length {
@@ -98,7 +98,7 @@ function lengthOf(l: number): Length {
 
 // required when type is custom (kg)
 class Weight {
-  constructor(readonly wt: number) {}
+  constructor(readonly wt: number) { }
 }
 
 function weightOf(wl: number): Weight {
@@ -106,7 +106,7 @@ function weightOf(wl: number): Weight {
 }
 
 class Dimension {
-  constructor(readonly width: Width, readonly height: Height, readonly length: Length, readonly weight: Weight) {}
+  constructor(readonly width: Width, readonly height: Height, readonly length: Length, readonly weight: Weight) { }
 }
 
 class Parcel {
@@ -117,52 +117,52 @@ class Parcel {
     readonly sku: Option<Sku> = none,
     readonly name: Option<Name> = none,
     readonly dimension: Option<Dimension> = none,
-  ) {}
+  ) { }
 }
 
 interface IParcel {
   readonly type: string;
   readonly number: number;
-  readonly productId?: string | null;
-  readonly sku?: string | null;
-  readonly name?: string | null;
-  readonly width?: number | null;
-  readonly height?: number | null;
-  readonly length?: number | null;
-  readonly weight?: number | null;
+  readonly productId?: string;
+  readonly sku?: string;
+  readonly name?: string;
+  readonly width?: number;
+  readonly height?: number;
+  readonly length?: number;
+  readonly weight?: number;
 }
 
 function toJson(p: Parcel): IParcel {
   return {
     type: p.type,
     number: p.parcelNumber.num,
-    productId: fold<ProductId, string | null>(
-      () => null,
+    productId: fold<ProductId, string | undefined>(
+      () => undefined,
       (v) => v.id,
     )(p.productId),
-    sku: fold<Sku, string | null>(
-      () => null,
+    sku: fold<Sku, string | undefined>(
+      () => undefined,
       (v) => v.s,
     )(p.sku),
-    name: fold<Name, string | null>(
-      () => null,
+    name: fold<Name, string | undefined>(
+      () => undefined,
       (v) => v.n,
     )(p.name),
-    width: fold<Dimension, number | null>(
-      () => null,
-      (v) => (p.type !== Type.Custom ? null : v.width.w),
+    width: fold<Dimension, number | undefined>(
+      () => undefined,
+      (v) => (p.type !== Type.Custom ? undefined : v.width.w),
     )(p.dimension),
-    height: fold<Dimension, number | null>(
-      () => null,
-      (v) => (p.type !== Type.Custom ? null : v.height.h),
+    height: fold<Dimension, number | undefined>(
+      () => undefined,
+      (v) => (p.type !== Type.Custom ? undefined : v.height.h),
     )(p.dimension),
-    length: fold<Dimension, number | null>(
-      () => null,
-      (v) => (p.type !== Type.Custom ? null : v.length.l),
+    length: fold<Dimension, number | undefined>(
+      () => undefined,
+      (v) => (p.type !== Type.Custom ? undefined : v.length.l),
     )(p.dimension),
-    weight: fold<Dimension, number | null>(
-      () => null,
-      (v) => (p.type !== Type.Custom ? null : v.weight.wt),
+    weight: fold<Dimension, number | undefined>(
+      () => undefined,
+      (v) => (p.type !== Type.Custom ? undefined : v.weight.wt),
     )(p.dimension),
   };
 }

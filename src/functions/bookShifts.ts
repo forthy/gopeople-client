@@ -41,7 +41,7 @@ class Shift {
    *
    * @param s - a string represents date of a shift in format 'yyyy-MM-dd'
    */
-  constructor(readonly s: string) {}
+  constructor(readonly s: string) { }
 }
 
 /**
@@ -68,7 +68,7 @@ class Equipment {
    * An equipment required for completing a job
    * @param e - the name of equipment
    */
-  constructor(readonly e: string) {}
+  constructor(readonly e: string) { }
 }
 
 function equipmentOf(e: string): Equipment {
@@ -76,7 +76,7 @@ function equipmentOf(e: string): Equipment {
 }
 
 class Note {
-  constructor(readonly txt: string) {}
+  constructor(readonly txt: string) { }
 }
 
 function noteOf(txt: string): Note {
@@ -84,7 +84,7 @@ function noteOf(txt: string): Note {
 }
 
 class RunnerNumber {
-  constructor(readonly num: number) {}
+  constructor(readonly num: number) { }
 }
 
 function runnerNumberOf(num: number): RunnerNumber {
@@ -92,7 +92,7 @@ function runnerNumberOf(num: number): RunnerNumber {
 }
 
 class Hours {
-  constructor(readonly h: number) {}
+  constructor(readonly h: number) { }
 }
 
 function hoursOf(h: number): Hours {
@@ -103,7 +103,7 @@ function hoursOf(h: number): Hours {
  * A start time of a shift in format `00:00 (AM | PM)`
  */
 class Time {
-  constructor(readonly t: string) {}
+  constructor(readonly t: string) { }
 }
 
 /**
@@ -116,7 +116,7 @@ function timeOf(t: string): Time {
 }
 
 class ShiftId {
-  constructor(readonly id: string) {}
+  constructor(readonly id: string) { }
 }
 
 function shiftIdOf(id: string): ShiftId {
@@ -124,7 +124,7 @@ function shiftIdOf(id: string): ShiftId {
 }
 
 class ShiftTime {
-  constructor(readonly st: string) {}
+  constructor(readonly st: string) { }
 }
 
 function shiftTimeOf(st: string): ShiftTime {
@@ -132,7 +132,7 @@ function shiftTimeOf(st: string): ShiftTime {
 }
 
 class ShiftInfo {
-  constructor(readonly id: ShiftId, readonly time: ShiftTime) {}
+  constructor(readonly id: ShiftId, readonly time: ShiftTime) { }
 }
 
 function validateHours(h: Hours): Either<Error, Hours> {
@@ -345,9 +345,9 @@ function bookShifts(
             body: _.omitBy(
               {
                 pickupAddress: addressToJson(pickupAddress),
-                returnAddress: fold<Address, object | null>(
-                  () => null,
-                  (a) => _.omitBy(addressToJson(a), _.isNull),
+                returnAddress: fold<Address, object | undefined>(
+                  () => undefined,
+                  (a) => addressToJson(a),
                 )(returnAddress),
                 parcelType: theParcelType,
                 dates: es.map((v, i, a) => v.s),
@@ -359,7 +359,7 @@ function bookShifts(
                 note: note.txt,
                 cbd: isCBD,
               },
-              _.isNull,
+              _.isUndefined,
             ),
             config: { host: h, key: k },
           };

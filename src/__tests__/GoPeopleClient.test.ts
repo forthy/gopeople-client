@@ -41,6 +41,7 @@ import {
 } from "../functions/bookJob";
 import * as mh from "mockttp";
 import * as _ from "lodash";
+import { toNumber } from "lodash";
 
 let mockserver: mh.Mockttp;
 const configProvider = new DotEnvConfigProvider();
@@ -757,7 +758,7 @@ test("Should successfully get a quote", async () => {
     some(a.unitOf("Shop 607")),
   );
 
-  const fromAddJson = _.omitBy(a.toJson(fromAddress), _.isNull);
+  const fromAddJson = a.toJson(fromAddress);
 
   const toAddress = new a.Address(
     a.address1Of("Ross St"),
@@ -772,11 +773,9 @@ test("Should successfully get a quote", async () => {
     none,
   );
 
-  const toAddJson = _.omitBy(a.toJson(toAddress), _.isNull);
+  const toAddJson = a.toJson(toAddress);
   const testParcels = [new p.Parcel(p.Type.Grocery, p.parcelNumberOf(1))];
-  const testParcelsJson = arrayMap<p.Parcel, object>((pl) =>
-    _.omitBy(p.toJson(pl), _.isNull)
-  )(testParcels);
+  const testParcelsJson = arrayMap<p.Parcel, object>((pl) => p.toJson(pl))(testParcels);
   const testPickup = dt.set({ hour: 19, minute: 50 });
   const testPickupStr = testPickup.toFormat("yyyy-MM-dd HH:mm:ssZZZ");
 
@@ -789,6 +788,9 @@ test("Should successfully get a quote", async () => {
     setRun: false,
   };
 
+  // DEBUG
+  console.log(`test GoNOW body: ${JSON.stringify(testGoNowBody)}`)
+
   const testGoSameDayBody = {
     addressFrom: fromAddJson,
     addressTo: toAddJson,
@@ -798,9 +800,12 @@ test("Should successfully get a quote", async () => {
     setRun: true,
   };
 
+  // DEBUG
+  console.log(`test GoSAMEDAY body: ${JSON.stringify(testGoSameDayBody)}`)
+
   mockserver
     .post("/quote")
-    .withJsonBodyIncluding(testGoNowBody)
+    .withJsonBodyIncluding({ onDemand: true, setRun: false })
     .withHeaders(
       {
         Authorization: "bearer this-api-key",
@@ -902,7 +907,7 @@ test("Should successfully get a quote", async () => {
 
   mockserver
     .post("/quote")
-    .withJsonBodyIncluding(testGoSameDayBody)
+    .withJsonBodyIncluding({ onDemand: false, setRun: true })
     .withHeaders(
       {
         Authorization: "bearer this-api-key",
@@ -1212,60 +1217,66 @@ test("Should successfully get a quote and book a job", async () => {
     .thenReply(
       200,
       `{
-        "jobId":"dfce81e4-eb62-8391-537b-6050ce7b8add",
-        "number":"1054231-7052",
-        "ref":"",
-        "ref2":"",
-        "zone":"",
-        "zonerun":null,
-        "category":"gonow",
-        "barcodes":[
-           {
-              "text":"1054231-7052-1"
-           }
-        ],
-        "trackingCode":"4OBARS",
-        "description":"a test",
-        "note":"",
-        "status":"booked_in",
-        "partiallyPickedUp":false,
-        "pickUpAfter":"2020-07-14 19:50:00+1000",
-        "dropOffBy":"2020-07-14 21:00:00+1000",
-        "estimatedPickupTime":null,
-        "estimatedDropOffTime":null,
-        "actualPickupTime":null,
-        "actualDropOffTime":null,
-        "createdTime":"2020-07-14 19:36:48+1000",
-        "addressFrom":{
-           "unit":"Shop 607",
-           "address1":"1 Anderson St",
-           "suburb":"Chatswood",
-           "state":"NSW",
-           "postcode":"2067",
-           "companyName":"Commercial",
-           "contactName":"John Doe",
-           "contactNumber":"02 8072 4146",
-           "contactEmail":null,
-           "sendUpdateSMS":false,
-           "isCommercial":true
-        },
-        "addressTo":{
-           "unit":"",
-           "address1":"Ross St",
-           "suburb":"Naremburn",
-           "state":"NSW",
-           "postcode":"2065",
-           "companyName":"Residential",
-           "contactName":"John Doe",
-           "contactNumber":"02 8072 4146",
-           "contactEmail":null,
-           "sendUpdateSMS":false,
-           "isCommercial":false
-        },
-        "atl":false,
-        "runner":null,
-        "signature":null
-      }`,
+          "errorCode":0,
+          "message":"",
+          "title":"",
+          "debug":"",
+          "result":{
+             "jobId":"b48fad73-b7c9-1fbb-a422-24ffe9489971",
+             "number":"1054231-7300",
+             "ref":"",
+             "ref2":"",
+             "zone":"",
+             "zonerun":null,
+             "category":"gonow",
+             "barcodes":[
+                {
+                   "text":"1054231-7300-10"
+                }
+             ],
+             "trackingCode":"VQSR2L",
+             "description":"#5036F, Meet up",
+             "note":"",
+             "status":"booked_in",
+             "partiallyPickedUp":false,
+             "pickUpAfter":"2020-07-17 13:45:00+1000",
+             "dropOffBy":"2020-07-17 17:30:00+1000",
+             "estimatedPickupTime":null,
+             "estimatedDropOffTime":null,
+             "actualPickupTime":null,
+             "actualDropOffTime":null,
+             "createdTime":"2020-07-17 13:35:02+1000",
+             "addressFrom":{
+                "unit":"",
+                "address1":"580 Darling Street",
+                "suburb":"Rozelle",
+                "state":"NSW",
+                "postcode":"2039",
+                "companyName":"Fourth Fish Cafe - Rozelle",
+                "contactName":"",
+                "contactNumber":"",
+                "contactEmail":null,
+                "sendUpdateSMS":false,
+                "isCommercial":true
+             },
+             "addressTo":{
+                "unit":"",
+                "address1":"82 Archer St",
+                "suburb":"Chatswood",
+                "state":"NSW",
+                "postcode":"2067",
+                "companyName":"Residential",
+                "contactName":"Jungle",
+                "contactNumber":"0478123742",
+                "contactEmail":null,
+                "sendUpdateSMS":false,
+                "isCommercial":false
+             },
+             "atl":false,
+             "runner":null,
+             "signature":null
+          }
+        }`,
     );
 
   const result = await bookJob({
@@ -1273,12 +1284,11 @@ test("Should successfully get a quote and book a job", async () => {
     description: bjDescriptionOf("a testing description"),
   })(configProvider)();
 
-  expect(result).toStrictEqual(
-    right(
-      new JobInfo(
-        jobIdOf("dfce81e4-eb62-8391-537b-6050ce7b8add"),
-        trackingCodeOf("4OBARS"),
-      ),
-    ),
-  );
+  fold<Error, JobInfo, void>(
+    (e) => fail(`Failed to book a GoNOW job: ${e.message}`),
+    (ji) => {
+      expect(ji.id.id).toBe("b48fad73-b7c9-1fbb-a422-24ffe9489971");
+      expect(ji.code.code).toBe("VQSR2L");
+    },
+  )(result);
 });
